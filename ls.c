@@ -13,6 +13,7 @@
 #include<sys/stat.h>//提供stat
 #include <unistd.h>//getcwd
 #include<stdlib.h>//exit...?
+#include<string.h>
 
 #define purple "\033[35m"//为后面分颜色输出用宏定义包装对应颜色的代码
 #define blue "\033[34m"
@@ -22,38 +23,50 @@
 
 int aflag,lflag,Rflag,tflag,rflag,iflag,sflag;
 
-void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag){
-    char cpathname[999];
+void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,char* path){
+    char pathname[999];
     struct dirent* content;
-    if(getcwd(cpathname,9999)==NULL){
+    if(path==NULL){
+        getcwd(pathname,999);
+    }else{
+        strcpy(pathname,path);
+    }
+    if(pathname==NULL){
         printf("error when trying to get current directory");
         exit(EXIT_FAILURE);
     }
-    DIR* cdspointer=opendir(cpathname);
+    DIR* cdspointer=opendir(pathname);
+    if(cdspointer==NULL){
+        printf("error when trying to open directory");
+        exit(EXIT_FAILURE);       
+    }
     while(1){
         content=readdir(cdspointer);
         if(content==NULL){
             break;
         }
         if(content->d_name[0]!='.'||aflag==1){
+            
             printf("%s\n",content->d_name);
         }
 
     }
 
-
 }
 
-int main(){
-    char lscheck[9230];
-    char extra;
-    scanf("%s",lscheck);
-    if(lscheck[0]!='l'||lscheck[1]!='s'){
+int main(int argc,char* argv[]){
+    int extraposition=0;
+    if(strcmp(argv[0],"./ls")!=0){
         printf(red"wrong input!"reset);
-        return 0;
     }
-    while((extra=getchar())!='\n'){
-        switch(extra){
+    for(int i=1;i<argc;i++){//标记参数串位置
+        if(argv[i][0]=='-'){
+            extraposition=i;
+        }
+    }
+    if(extraposition!=0){
+        for(int i=1;i<strlen(argv[extraposition]);i++){
+          switch(argv[extraposition][i]){
             case 'a':aflag=1;break;
             case 'l':lflag=1;break;
             case 'R':Rflag=1;break;
@@ -61,11 +74,21 @@ int main(){
             case 'r':rflag=1;break;
             case 'i':iflag=1;break;
             case 's':sflag=1;break;
+        }            
         }
     }
-    list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag);
+    if((extraposition!=0&&argc==2)||argc==1){
+        list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag,NULL);
+    }else{
+         for(int i=1;i<argc;i++){
+            if(i==extraposition){
+            continue;
+        }
+        list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag,argv[i]);
+
+    }
+    }
     return 0;
 
-
-}   
+}
 
