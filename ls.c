@@ -37,6 +37,10 @@ int dcheck(struct stat stats){
     return 1;
 }
 
+void timesort(){
+
+}
+
 void showinformation(struct stat stats){
     if(S_ISREG(stats.st_mode)!=0){//文件类型（未完成
         printf("-");
@@ -61,6 +65,10 @@ void showinformation(struct stat stats){
 }
 
 void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,char* path){
+    struct dirent contents[9999];//存所有dirent结构体以供排序
+    int readcount=0;
+    int tcount=0;
+    int listcount=0;
     char pathname[9999];
     struct dirent* content;
     if(path==NULL){//当前或指定
@@ -77,11 +85,44 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
         printf("error when trying to open directory");
         exit(EXIT_FAILURE);       
     }
-    while(1){//主循环
+    while(1){//read循环
+
         content=readdir(cdspointer);
         if(content==NULL){
             break;
         }
+        contents[readcount]=*content;
+        readcount++;
+    }
+    if(tflag==1){
+        struct stat timesssssssss[99999];
+        struct stat aiodoawj;
+        while((listcount++)!=readcount-1){
+            char wholepath[9999];
+            struct stat stats;
+            snprintf(wholepath,sizeof(wholepath),"%s/%s",pathname,contents[tcount].d_name);//拼接
+            stat(wholepath,&stats);
+            timesssssssss[tcount]=stats;
+            tcount++;
+        }
+        listcount=0;
+        struct dirent temp;
+        for(int i=0;i<readcount-2;i++){
+		for(int j=0;j<readcount-2-i;j++){
+			if(timesssssssss[j].st_mtime>timesssssssss[j+1].st_mtime){
+				temp=contents[j];
+				contents[j]=contents[j+1];
+				contents[j+1]=temp;
+                aiodoawj=timesssssssss[j];
+                timesssssssss[j]=timesssssssss[j+1];
+                timesssssssss[j+1]=aiodoawj;
+
+
+			}
+		}
+	}
+    }
+    while((listcount++)!=readcount-1){//输出循环  ！！未完成
     char wholepath[9999];
     struct stat stats;
     snprintf(wholepath,sizeof(wholepath),"%s/%s",pathname,content->d_name);//拼接
@@ -94,7 +135,7 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
                 printf(blue"%lld "reset,(long long)stats.st_ino);
             }
             if(sflag==1){
-                printf(purple"%lld "reset,(long long)stats.st_blocks);
+                printf(purple"%lld "reset,(long long)stats.st_blocks/2);//文件占用磁盘块数，系统默认1kb一块，stat里面512b算一块，除以二换算*
             }
             if(dcheck(stats)){
                 printf(red"%s\n"reset,content->d_name);
