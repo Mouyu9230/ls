@@ -1,5 +1,3 @@
-//用不同的函数块实现不同的需求,为确保可以组合使用参数，考虑通过在list中增加其他函数是否执行的判定来完成组
-//合，而不是分别在各个参数对应的函数块完整的实现对应的目标
 //---------------------------------------------------------------
 //-a: 显示隐藏文件 
 //-l：显示详细信息 
@@ -12,13 +10,12 @@
 #include<dirent.h>//提供readdir,opendir,closedir,包含dirent结构体
 #include<sys/stat.h>//提供stat
 #include<sys/types.h>//stat
-#include <unistd.h>//stat,getcwd
+#include<unistd.h>//stat,getcwd
 #include<stdlib.h>//exit...?
 #include<string.h>
 #include<pwd.h>//getpwduid与返回结构体
 #include<grp.h>//getgrgid与返回结构体
 #include<time.h>//ctime函数
-
 
 #define purple "\033[35m"//为后面分颜色输出用宏定义包装对应颜色的代码
 #define blue "\033[34m"
@@ -30,6 +27,11 @@
 
 int aflag,lflag,Rflag,tflag,rflag,iflag,sflag;
 
+typedef struct uni{
+    char name[256];
+    struct stat stats;
+}uni;
+
 int dcheck(struct stat stats){
     if(S_ISREG(stats.st_mode)!=0){
         return 0;
@@ -37,8 +39,17 @@ int dcheck(struct stat stats){
     return 1;
 }
 
-void timesort(){
-
+void timesort(uni* unit,int count){
+    uni temp;
+    for(int i=0;i<count-1;i++){
+        for(int j=0;j<count-1-i;j++){
+            if(unit[j].stats.st_mtime<unit[j+1].stats.st_mtime){
+                temp=unit[j];
+                unit[j]=unit[j+1];
+                unit[j+1]=temp;
+            }
+        }
+    }
 }
 
 void showinformation(struct stat stats){
@@ -47,32 +58,32 @@ void showinformation(struct stat stats){
     }else{
         printf("d");
     }
-    if((stats.st_mode&S_IRUSR)!=0)printf("r");else{printf("-");}//权限
-    if((stats.st_mode&S_IWUSR)!=0)printf("w");else{printf("-");}
-    if((stats.st_mode&S_IXUSR)!=0)printf("x");else{printf("-");}
-    if((stats.st_mode&S_IRGRP)!=0)printf("r");else{printf("-");}
-    if((stats.st_mode&S_IWGRP)!=0)printf("w");else{printf("-");}
-    if((stats.st_mode&S_IXGRP)!=0)printf("x");else{printf("-");}
-    if((stats.st_mode&S_IROTH)!=0)printf("r");else{printf("-");}
-    if((stats.st_mode&S_IWOTH)!=0)printf("w");else{printf("-");}
-    if((stats.st_mode&S_IXOTH)!=0)printf("x ");else{printf("- ");}
+    if((stats.st_mode&S_IRUSR)!=0)printf("r");else printf("-");
+    if((stats.st_mode&S_IWUSR)!=0)printf("w");else printf("-");
+    if((stats.st_mode&S_IXUSR)!=0)printf("x");else printf("-");
+    if((stats.st_mode&S_IRGRP)!=0)printf("r");else printf("-");
+    if((stats.st_mode&S_IWGRP)!=0)printf("w");else printf("-");
+    if((stats.st_mode&S_IXGRP)!=0)printf("x");else printf("-");
+    if((stats.st_mode&S_IROTH)!=0)printf("r");else printf("-");
+    if((stats.st_mode&S_IWOTH)!=0)printf("w");else printf("-");
+    if((stats.st_mode&S_IXOTH)!=0)printf("x ");else printf("- ");
     printf("%d ",(int)stats.st_nlink);
-    struct passwd *pw = getpwuid(stats.st_uid);
-    struct group  *gr = getgrgid(stats.st_gid);
-    printf("%s %s ",pw->pw_name,gr->gr_name);
+    struct passwd *pw=getpwuid(stats.st_uid);
+    struct group *gr=getgrgid(stats.st_gid);
+    if(pw!=NULL)printf("%s ",pw->pw_name);else printf("%d ",stats.st_uid);
+    if(gr!=NULL)printf("%s ",gr->gr_name);else printf("%d ",stats.st_gid);
     printf("%lld ",(long long int)stats.st_size);
     printf("%s",ctime(&stats.st_mtime));
 }
 
 void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,char* path){
-    struct dirent contents[9999];//存所有dirent结构体以供排序
-    int readcount=0;
-    int tcount=0;
-    int listcount=0;
-    char pathname[9999];
+    char pathname[256];
     struct dirent* content;
+    uni tlist[1024];//存所有unit以供排序
+    int tcount=0;
+
     if(path==NULL){//当前或指定
-        getcwd(pathname,9999);
+        getcwd(pathname,256);
     }else{
         strcpy(pathname,path);
     }
@@ -81,77 +92,53 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
         exit(EXIT_FAILURE);
     }
     DIR* cdspointer=opendir(pathname);
-    if(cdspointer==NULL){ 
+    if(cdspointer==NULL){
         printf("error when trying to open directory");
-        exit(EXIT_FAILURE);       
+        exit(EXIT_FAILURE);
     }
-    while(1){//read循环
 
+    while(1){//read循环
         content=readdir(cdspointer);
         if(content==NULL){
             break;
         }
-        contents[readcount]=*content;
-        readcount++;
+        char wholepath[256];
+        struct stat stats;
+        snprintf(wholepath,sizeof(wholepath),"%s/%s",pathname,content->d_name);//拼接
+        if(stat(wholepath,&stats)!=0){
+            continue;
     }
-    if(tflag==1){
-        struct stat timesssssssss[99999];
-        struct stat aiodoawj;
-        while((listcount++)!=readcount-1){
-            char wholepath[9999];
-            struct stat stats;
-            snprintf(wholepath,sizeof(wholepath),"%s/%s",pathname,contents[tcount].d_name);//拼接
-            stat(wholepath,&stats);
-            timesssssssss[tcount]=stats;
-            tcount++;
-        }
-        listcount=0;
-        struct dirent temp;
-        for(int i=0;i<readcount-2;i++){
-		for(int j=0;j<readcount-2-i;j++){
-			if(timesssssssss[j].st_mtime>timesssssssss[j+1].st_mtime){
-				temp=contents[j];
-				contents[j]=contents[j+1];
-				contents[j+1]=temp;
-                aiodoawj=timesssssssss[j];
-                timesssssssss[j]=timesssssssss[j+1];
-                timesssssssss[j+1]=aiodoawj;
-
-
-			}
-		}
-	}
+        stat(wholepath,&stats);
+        strcpy(tlist[tcount].name,content->d_name);
+        tlist[tcount].stats=stats;
+        tcount++;
     }
-    while((listcount++)!=readcount-1){//输出循环  ！！未完成
-    char wholepath[9999];
-    struct stat stats;
-    snprintf(wholepath,sizeof(wholepath),"%s/%s",pathname,content->d_name);//拼接
-    stat(wholepath,&stats);
-        if(content->d_name[0]!='.'||aflag==1){//-a判定
+
+    if(tflag==1){//-t判定
+        timesort(tlist,tcount);
+    }
+
+    for(int i=0;i<tcount;i++){//输出循环
+        if(tlist[i].name[0]!='.'||aflag==1){//-a判定
             if(lflag==1){//-l判定
-                showinformation(stats);
-            }//根据各种条件分颜色输出
-            if(iflag==1){
-                printf(blue"%lld "reset,(long long)stats.st_ino);
+                showinformation(tlist[i].stats);
+            }
+            if(iflag==1){//根据不同情况分颜色输出
+                printf(blue"%lld "reset,(long long)tlist[i].stats.st_ino);
             }
             if(sflag==1){
-                printf(purple"%lld "reset,(long long)stats.st_blocks/2);//文件占用磁盘块数，系统默认1kb一块，stat里面512b算一块，除以二换算*
+                printf(purple"%lld "reset,(long long)tlist[i].stats.st_blocks);//文件占用磁盘块数，系统默认1kb一块，stat里面512b算一块，除以二换算*
             }
-            if(dcheck(stats)){
-                printf(red"%s\n"reset,content->d_name);
-            }else if(content->d_name[0]=='.'){
-                printf(yellow"%s\n"reset,content->d_name);
+            if(dcheck(tlist[i].stats)){
+                printf(red"%s\n"reset,tlist[i].name);
+            }else if(tlist[i].name[0]=='.'){
+                printf(yellow"%s\n"reset,tlist[i].name);
             }else{
-                printf(cyan"%s\n"reset,content->d_name);
+                printf(cyan"%s\n"reset,tlist[i].name);
             }
-
-                
         }
-
     }
     closedir(cdspointer);
-
-
 }
 
 int main(int argc,char* argv[]){
@@ -159,6 +146,7 @@ int main(int argc,char* argv[]){
     int extrastrcount=0;
     int findflag=0;//遍历寻找参数串并标记以供后续switch解析参数
     int continueflag=0;//遍历输出命令行参数中各个路径对应结果时用来标记，跳过参数字符串
+
     for(int i=1;i<argc;i++){//标记参数串位置
         if(argv[i][0]=='-'){
             extraposition[extrastrcount]=i;
@@ -174,26 +162,26 @@ int main(int argc,char* argv[]){
                 }
             }
             if(findflag==1){
-    for(int i=1;i<strlen(argv[s]);i++){
-          switch(argv[s][i]){
-            case 'a':aflag=1;break;
-            case 'l':lflag=1;break;
-            case 'R':Rflag=1;break;
-            case 't':tflag=1;break;
-            case 'r':rflag=1;break;
-            case 'i':iflag=1;break;
-            case 's':sflag=1;break;
-        }            
-        }
+                for(int i=1;i<strlen(argv[s]);i++){
+                    switch(argv[s][i]){
+                        case 'a':aflag=1;break;
+                        case 'l':lflag=1;break;
+                        case 'R':Rflag=1;break;
+                        case 't':tflag=1;break;
+                        case 'r':rflag=1;break;
+                        case 'i':iflag=1;break;
+                        case 's':sflag=1;break;
+                    }
+                }
             }
             findflag=0;
         }
-
     }
+
     if(extrastrcount==argc-1||argc==1){//没输入路径就getcwd输出当前目录内容
         list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag,NULL);
     }else{//有的话就遍历argv输出，跳过参数字符串
-         for(int i=1;i<argc;i++){
+        for(int i=1;i<argc;i++){
             for(int j=0;j<extrastrcount;j++){
                 if(i==extraposition[j]){
                     continueflag=1;
@@ -204,12 +192,8 @@ int main(int argc,char* argv[]){
                 continueflag=0;
                 continue;
             }
-
-        list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag,argv[i]);
-
-    }
+            list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag,argv[i]);
+        }
     }
     return 0;
-
 }
-
