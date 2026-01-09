@@ -51,6 +51,14 @@ void timesort(uni* unit,int count){
         }
     }
 }
+void swapsort(uni* unit,int count){
+    uni temp;
+    for(int i=0;i<count/2;i++){
+        temp=unit[i];
+        unit[i]=unit[count-1-i];
+        unit[count-1-i]=temp;
+    }
+}
 
 void showinformation(struct stat stats){
     if(S_ISREG(stats.st_mode)!=0){//文件类型（未完成
@@ -96,7 +104,7 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
         printf("error when trying to open directory");
         exit(EXIT_FAILURE);
     }
-
+    printf("%s:\n",pathname);
     while(1){//read循环
         content=readdir(cdspointer);
         if(content==NULL){
@@ -116,6 +124,9 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
 
     if(tflag==1){//-t判定
         timesort(tlist,tcount);
+    }
+    if(rflag==1){
+        swapsort(tlist,tcount);
     }
 
     for(int i=0;i<tcount;i++){//输出循环
