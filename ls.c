@@ -33,10 +33,10 @@ typedef struct uni{
 }uni;
 
 int dcheck(struct stat stats){
-    if(S_ISREG(stats.st_mode)!=0){
-        return 0;
+    if(S_ISDIR(stats.st_mode)!=0){
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 void timesort(uni* unit,int count){
@@ -61,11 +61,25 @@ void swapsort(uni* unit,int count){
 }
 
 void showinformation(struct stat stats){
-    if(S_ISREG(stats.st_mode)!=0){//文件类型（未完成
+    if(S_ISREG(stats.st_mode)!=0){//文件类型
         printf("-");
+    }else if(S_ISDIR(stats.st_mode)!=0){
+    printf("d");
+    }else if(S_ISLNK(stats.st_mode)!=0){
+    printf("l");
+    }else if(S_ISCHR(stats.st_mode)!=0){
+    printf("c");
+    }else if(S_ISBLK(stats.st_mode)!=0){
+    printf("b");
+    }else if(S_ISFIFO(stats.st_mode)!=0){
+    printf("p");
+    }else if(S_ISSOCK(stats.st_mode)!=0){
+    printf("s");
     }else{
-        printf("d");
-    }
+    printf("?");
+   }
+
+    
     if((stats.st_mode&S_IRUSR)!=0)printf("r");else printf("-");
     if((stats.st_mode&S_IWUSR)!=0)printf("w");else printf("-");
     if((stats.st_mode&S_IXUSR)!=0)printf("x");else printf("-");
@@ -85,13 +99,19 @@ void showinformation(struct stat stats){
 }
 
 void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,char* path){
-    char pathname[256];
+    int dflag=0;
+    char pathname[1024];
     struct dirent* content;
-    uni tlist[1024];//存所有unit以供排序
-    int tcount=0;
+    int cap = 128;                 // 动态容量
+    int tcount = 0;
+    uni *tlist = malloc(cap * sizeof(uni));
+    if(tlist == NULL){
+        perror("malloc");
+        return;
+    }
 
     if(path==NULL){//当前或指定
-        getcwd(pathname,256);
+        getcwd(pathname,1024);
     }else{
         strcpy(pathname,path);
     }
@@ -101,8 +121,8 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
     }
     DIR* cdspointer=opendir(pathname);
     if(cdspointer==NULL){
-        printf("error when trying to open directory");
-        exit(EXIT_FAILURE);
+        perror(pathname);
+        return;
     }
     printf("%s:\n",pathname);
     while(1){//read循环
@@ -110,13 +130,21 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
         if(content==NULL){
             break;
         }
-        char wholepath[256];
+        char wholepath[1024];
         struct stat stats;
         snprintf(wholepath,sizeof(wholepath),"%s/%s",pathname,content->d_name);//拼接
-        if(stat(wholepath,&stats)!=0){
+        if(lstat(wholepath, &stats) != 0){
             continue;
-    }
-        stat(wholepath,&stats);
+        }
+        if(tcount >= cap){
+            cap *= 2;
+            uni *tmp = realloc(tlist, cap * sizeof(uni));
+            if(tmp == NULL){
+                perror("realloc");
+                break;
+            }
+            tlist = tmp;
+        }
         strcpy(tlist[tcount].name,content->d_name);
         tlist[tcount].stats=stats;
         tcount++;
@@ -149,7 +177,23 @@ void list(int aflag,int lflag,int Rflag,int tflag,int rflag,int iflag,int sflag,
             }
         }
     }
+    //1.13
+    if(Rflag==1){
+        for(int i=0;i<tcount;i++){
+            if(dcheck(tlist[i].stats)&&!S_ISLNK(tlist[i].stats.st_mode)&&tlist[i].name[0]!='.'){
+            char newpath[1024];
+
+            strcpy(newpath,pathname);
+            strcat(newpath,"/");
+            strcat(newpath,tlist[i].name);
+
+            printf("\n");
+            list(aflag,lflag,Rflag,tflag,rflag,iflag,sflag,newpath);
+            }
+        }
+    }
     closedir(cdspointer);
+    free(tlist);
 }
 
 int main(int argc,char* argv[]){
